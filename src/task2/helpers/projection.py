@@ -2,14 +2,16 @@
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-class ProjectionModule:
+class ProjectionModule(nn.Module):
     def __init__(self, input_dim, output_dim, method="linear"):
         """
         input_dim: int, dimension of input embeddings
         output_dim: int, desired dimension of output embeddings
         method: str, one of ["linear", "mlp"]
         """
+        super().__init__()
         self.method = method
         if method == "linear":
             self.proj = nn.Linear(input_dim, output_dim)
@@ -22,9 +24,19 @@ class ProjectionModule:
         else:
             raise ValueError(f"Unknown projection method: {method}")
 
-    def project(self, embedding):
+    def forward(self, embedding):
         """
         embedding: tensor of shape [B, D_in]
         returns: projected embedding of shape [B, D_out]
         """
-        return self.proj(embedding)
+
+        if embedding.dim() == 1:
+            embedding = embedding.unsqueeze(0)     # ensure batch dimension
+
+        embedding = embedding.to(next(self.proj.parameters()).device)       # move to module's device
+
+        projected = self.proj(embedding)
+        projected = F.normalize(projected, dim=-1)  # Normalize to unit length
+
+        return projected
+    

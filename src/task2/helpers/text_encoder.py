@@ -17,11 +17,22 @@ class TextEncoder:
         text: string
         returns: normalized embedding
         """
+        if isinstance(text, str):                           # accept single string or list of strings
+            text = [text]
 
-        inputs = self.tokenizer(text, return_tensors="pt")
-        with torch.no_grad():
-            outputs = self.model(**inputs)
+        inputs = self.tokenizer(text, return_tensors="pt", padding=True, truncation=True)
+
+        device = next(self.model.parameters()).device       # move to model device
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+
+        outputs = self.model(**inputs)
 
         # CLS token embedding
-        cls_embedding = outputs.last_hidden_state[:, 0, :]  # shape: (1, hidden_size)
-        return cls_embedding
+        cls_embedding = outputs.last_hidden_state[:, 0, :]  # outputs.last_hidden_state has shape [batch_size, seq_len, hidden_size]
+        cls_embedding = F.normalize(cls_embedding, dim=-1)  # shape: (batch_size, hidden_size)
+
+        if len(text) == 1:
+            return cls_embedding[0] # return 1D tensor for single text
+        
+        return cls_embedding # return [batch_size, hidden_size] for multiple texts
+
