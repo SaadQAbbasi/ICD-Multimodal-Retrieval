@@ -342,7 +342,7 @@ def main_example():
     
     # Create dataloader
     dataloader = create_dataloader(
-        mimic_root="/path/to/mimic-cxr",  # Update this path
+        mimic_root="/datasets/MIMIC-CXR", 
         split='train',
         batch_size=4,
         min_images_per_study=2,  # Only studies with 2+ images
@@ -373,7 +373,7 @@ def main_example():
     # Example with flat collate
     print("\n\nExample batch (flat structure):")
     dataloader_flat = create_dataloader(
-        mimic_root="/path/to/mimic-cxr",
+        mimic_root="/datasets/MIMIC-CXR",
         split='train',
         batch_size=4,
         min_images_per_study=2,

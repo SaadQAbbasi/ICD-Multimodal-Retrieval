@@ -23,10 +23,24 @@ class ImageEncoder:
     @torch.no_grad()
     def encode(self, image_paths):
 
-        if isinstance(image_paths, str): # Accept either a single path or a list of paths
+        if isinstance(image_paths, str) or isinstance(image_paths, Image.Image):
             image_paths = [image_paths]
 
-        imgs = [self.transform(Image.open(image).convert("RGB")) for image in image_paths]
+        # imgs = [self.transform(Image.open(image).convert("RGB")) for image in image_paths]
+        imgs = []
+
+        for image in image_paths:
+            if isinstance(image, str):
+                # It's a path - load it
+                pil_img = Image.open(image).convert("RGB")
+            elif isinstance(image, Image.Image):
+                # It's already a PIL Image - use it directly
+                pil_img = image
+            else:
+                raise TypeError(f"Expected str or PIL.Image, got {type(image)}")
+            
+            imgs.append(self.transform(pil_img))
+
         x = torch.stack(imgs, dim=0)    # [batch_size, 3, 224, 224]
 
             
