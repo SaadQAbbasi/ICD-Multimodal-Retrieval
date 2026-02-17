@@ -72,6 +72,7 @@ class MultimodalRadiographDataset(Dataset):
                 - image_paths: List of paths to images
                 - report_path: Path to text report
                 - patient_folder: e.g., 'p10' (for organizing)
+                - num_images: Number of images in this study
         """
         studies = []
         
