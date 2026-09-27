@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.cache/
+cache/
+outputs/
+pretrained/
+slurm_outputs/*
+!slurm_outputs/.gitkeep
+notebooks/.ipynb_checkpoints/
+wandb/
+
+
+vendor/
