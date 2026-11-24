@@ -1,0 +1,17 @@
+# Python 3.12. Install with: pip install -r requirements.txt (after the CUDA torch line below).
+# Versions used for every reported run (full environment: requirements_full_freeze.txt).
+# CUDA build of torch used: 2.6.0+cu124 -> pip install torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu124
+torch==2.6.0
+torchvision==0.21.0
+transformers==4.57.1
+tokenizers==0.22.1
+huggingface-hub==0.36.0
+safetensors==0.6.2
+numpy==2.3.4
+pandas==3.0.3
+scikit-learn==1.7.2
+pillow==11.3.0
+tqdm==4.67.1
+matplotlib==3.11.0
+wandb==0.23.0          # optional: logging is disabled unless WANDB_MODE=online/offline
+ipykernel==7.2.0       # Jupyter / VS Code kernel for notebooks/*.ipynb (both notebooks need only the packages above)

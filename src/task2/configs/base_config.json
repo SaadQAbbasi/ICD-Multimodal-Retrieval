@@ -1,0 +1,23 @@
+{
+  "embedding_dim": 512,
+  "min_label_frequency": 1,
+  "max_image_studies_per_admission": null,
+  "max_text_reports_per_admission": null,
+  "batch_size": 16,
+  "extraction_batch_size": 8,
+  "num_workers": 4,
+  "epochs": 20,
+  "learning_rate": 0.001,
+  "weight_decay": 0.0001,
+  "dropout": 0.1,
+  "image_loss_weight": 0.25,
+  "text_loss_weight": 0.25,
+  "fused_loss_weight": 0.5,
+  "pos_weight_cap": 50.0,
+  "use_positive_weights": false,
+  "threshold": 0.5,
+  "top_k": 5,
+  "seed": 42,
+  "use_amp": true,
+  "wandb_project": "mimic-icd-task2"
+}

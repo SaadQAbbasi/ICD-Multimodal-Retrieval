@@ -1,13 +1,18 @@
-__pycache__/
-*.py[cod]
-.cache/
+# Created when running the code (large and/or patient-level data, never committed)
 cache/
 outputs/
 pretrained/
+vendor/
+.cache/
+wandb/
 slurm_outputs/*
 !slurm_outputs/.gitkeep
-notebooks/.ipynb_checkpoints/
-wandb/
 
+# Local-only working material
+_archive_local/
+reports/
+submission/
 
-vendor/
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/

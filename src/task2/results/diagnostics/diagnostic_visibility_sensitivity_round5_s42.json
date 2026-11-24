@@ -1,0 +1,182 @@
+{
+  "run": "/home/icdmultimodalproject/project/src/task2/outputs/experiment05_ft_supcon_w0.001_both_s42",
+  "tiers": {
+    "narrow (original list)": {
+      "codes": 107,
+      "pos_share": 6.760526180267334,
+      "baseline_ap": 0.12045039937288557,
+      "fused_ap": 0.3201626179111056,
+      "lift": 2.658045299791484
+    },
+    "broad extra codes only": {
+      "codes": 101,
+      "pos_share": 3.8894736766815186,
+      "baseline_ap": 0.05977929060851886,
+      "fused_ap": 0.18658490827694127,
+      "lift": 3.1212298837542907
+    },
+    "BROAD = narrow + extra": {
+      "codes": 208,
+      "pos_share": 10.649999618530273,
+      "baseline_ap": 0.10214788364441828,
+      "fused_ap": 0.2734922597606437,
+      "lift": 2.6774148421193282
+    },
+    "dialysis-catheter related": {
+      "codes": 3,
+      "pos_share": 0.5105262994766235,
+      "baseline_ap": 0.049719884372361925,
+      "fused_ap": 0.19620587796092784,
+      "lift": 3.9462255481429462
+    },
+    "no direct radiological sign": {
+      "codes": 3069,
+      "pos_share": 78.64736938476562,
+      "baseline_ap": 0.1558604044085204,
+      "fused_ap": 0.21652527506625127,
+      "lift": 1.3892256720874678
+    },
+    "all diagnoses": {
+      "codes": 3280,
+      "pos_share": 89.80789184570312,
+      "baseline_ap": 0.15095235376988803,
+      "fused_ap": 0.2233705036175651,
+      "lift": 1.4797417730767644
+    }
+  },
+  "other_by_chapter": {
+    "V codes (supplementary)": {
+      "codes": 336,
+      "pos_share": 14.278947830200195,
+      "baseline_ap": 0.14661853294246072,
+      "fused_ap": 0.2300994359005136,
+      "lift": 1.5693748346998828
+    },
+    "endocrine/metabolic": {
+      "codes": 141,
+      "pos_share": 10.957894325256348,
+      "baseline_ap": 0.19979868788351507,
+      "fused_ap": 0.28410342273884004,
+      "lift": 1.421948390894717
+    },
+    "circulatory": {
+      "codes": 213,
+      "pos_share": 9.684210777282715,
+      "baseline_ap": 0.2201644145017765,
+      "fused_ap": 0.3175103902902593,
+      "lift": 1.442151271397664
+    },
+    "symptoms/ill-defined": {
+      "codes": 184,
+      "pos_share": 6.400000095367432,
+      "baseline_ap": 0.036049407815984306,
+      "fused_ap": 0.06782983585466507,
+      "lift": 1.8815797530130112
+    },
+    "digestive": {
+      "codes": 244,
+      "pos_share": 5.513157844543457,
+      "baseline_ap": 0.11249188089588838,
+      "fused_ap": 0.18762473637384292,
+      "lift": 1.6678958061648044
+    },
+    "nervous/sense": {
+      "codes": 341,
+      "pos_share": 4.900000095367432,
+      "baseline_ap": 0.05944452733908716,
+      "fused_ap": 0.12843668416067694,
+      "lift": 2.160614103768383
+    },
+    "mental": {
+      "codes": 134,
+      "pos_share": 4.805263042449951,
+      "baseline_ap": 0.15306430753110492,
+      "fused_ap": 0.18107480999122438,
+      "lift": 1.1829982633569052
+    },
+    "genitourinary": {
+      "codes": 137,
+      "pos_share": 4.442105293273926,
+      "baseline_ap": 0.14941921812985587,
+      "fused_ap": 0.22123111360608771,
+      "lift": 1.4806068213649881
+    },
+    "E codes (external causes)": {
+      "codes": 221,
+      "pos_share": 4.431579113006592,
+      "baseline_ap": 0.17274586455016533,
+      "fused_ap": 0.27654027801898223,
+      "lift": 1.6008503516949608
+    },
+    "blood": {
+      "codes": 10,
+      "pos_share": 3.728947401046753,
+      "baseline_ap": 0.20440181349826897,
+      "fused_ap": 0.30690949391809047,
+      "lift": 1.501500836345024
+    },
+    "injury/poisoning": {
+      "codes": 355,
+      "pos_share": 2.6421053409576416,
+      "baseline_ap": 0.05054436829781102,
+      "fused_ap": 0.1645175077613206,
+      "lift": 3.25491272918818
+    },
+    "musculoskeletal": {
+      "codes": 173,
+      "pos_share": 2.0999999046325684,
+      "baseline_ap": 0.021563112355590133,
+      "fused_ap": 0.030844207805721793,
+      "lift": 1.4304153916688924
+    },
+    "infectious": {
+      "codes": 155,
+      "pos_share": 1.9263157844543457,
+      "baseline_ap": 0.022645526535248605,
+      "fused_ap": 0.042839251851673435,
+      "lift": 1.8917313220777863
+    },
+    "neoplasms": {
+      "codes": 228,
+      "pos_share": 1.3342105150222778,
+      "baseline_ap": 0.007289827794182895,
+      "fused_ap": 0.03432846512163906,
+      "lift": 4.709091365509668
+    },
+    "skin": {
+      "codes": 101,
+      "pos_share": 1.0236842632293701,
+      "baseline_ap": 0.011808866973467962,
+      "fused_ap": 0.023982659966086606,
+      "lift": 2.030902712340701
+    },
+    "respiratory": {
+      "codes": 44,
+      "pos_share": 0.24210526049137115,
+      "baseline_ap": 0.003790528551599611,
+      "fused_ap": 0.006785648927747614,
+      "lift": 1.7901590333316593
+    },
+    "congenital": {
+      "codes": 18,
+      "pos_share": 0.15789473056793213,
+      "baseline_ap": 0.0033058229336144973,
+      "fused_ap": 0.0034760091888331084,
+      "lift": 1.0514807533967145
+    },
+    "pregnancy": {
+      "codes": 31,
+      "pos_share": 0.07894736528396606,
+      "baseline_ap": 0.0007334046459956969,
+      "fused_ap": 0.01431142869549291,
+      "lift": 19.51368698525654
+    },
+    "perinatal": {
+      "codes": 3,
+      "pos_share": 0.0,
+      "baseline_ap": NaN,
+      "fused_ap": NaN,
+      "lift": NaN
+    }
+  }
+}
