@@ -1,0 +1,915 @@
+<title>Chest X-rays to ICD Codes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@500;600;700&display=swap">
+<style>
+/* Layout: a fixed 1280x720 stage scaled to the window; scenes stack inside it and reveal step by step. Light theme only, by choice. */
+:root{
+  --bg:#E6EBF1; --paper:#FBFCFD; --ink:#132033; --ink2:#465367; --muted:#7A8596; --line:#D7DEE7; --soft:#EEF2F6;
+  --frozen:#3B6FD8; --frozen-bg:#E6EEFB; --trained:#E07B39; --trained-bg:#FCEADB; --avg:#8A94A3;
+  --img:#6A52D6; --txt:#14937F; --base:#A6AEBB; --good:#2E9E6B; --bad:#C8453B; --chest:#E05A3A;
+  --f-head:"Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --f-body:"Inter", "Segoe UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  color-scheme: light;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);overflow:hidden}
+#viewport{position:fixed;inset:0}
+.stage{position:absolute;left:50%;top:50%;width:1280px;height:720px;background:var(--paper);border-radius:14px;overflow:hidden;box-shadow:0 12px 44px rgba(19,32,51,.13);transform-origin:center center}
+.scene{position:absolute;inset:0;opacity:0;visibility:hidden;transition:opacity .45s ease,visibility 0s linear .45s}
+.scene.active{opacity:1;visibility:visible;transition:opacity .45s ease}
+.eyebrow{position:absolute;left:56px;top:32px;font:500 12px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.scene h2{position:absolute;left:56px;top:52px;margin:0;font:600 31px/1.15 var(--f-head);letter-spacing:-.01em;color:var(--ink);max-width:1120px;text-wrap:balance}
+.abs{position:absolute}
+.full{position:absolute;left:0;top:0;width:1280px;height:720px;overflow:visible;pointer-events:none}
+/* caption + nav */
+.caption{position:absolute;left:56px;right:330px;bottom:26px;min-height:54px;display:flex;align-items:flex-end;font:500 19px/1.38 var(--f-body);color:var(--ink2);transition:opacity .25s}
+.caption.fade{opacity:0}
+.nav{position:absolute;right:36px;bottom:28px;display:flex;align-items:center;gap:12px;font:500 12px var(--f-mono);color:var(--muted)}
+.nav button{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--paper);color:var(--ink);font:500 18px/1 var(--f-body);cursor:pointer;display:grid;place-items:center}
+.nav button:hover{background:var(--soft)}
+.nav button:focus-visible{outline:2px solid var(--frozen);outline-offset:2px}
+.dots{display:flex;gap:5px}
+.dots i{width:6px;height:6px;border-radius:50%;background:var(--line);transition:background .3s}
+.dots i.on{background:var(--ink2)}
+.progress{position:absolute;left:0;bottom:0;height:3px;background:var(--trained);transition:width .4s ease}
+/* reveal system */
+.fx{transition:opacity .5s ease,transform .75s cubic-bezier(.2,.7,.2,1);transition-delay:var(--d,0s)}
+.fx.pre{opacity:0;transform:translate(var(--px,0px),var(--py,10px))}
+.fx.post{opacity:var(--po,0);transform:translate(var(--mx,0px),var(--my,0px))}
+svg .fx{transform-box:fill-box}
+.hbar{transform-origin:left center}
+.vbar{transform-origin:center bottom}
+.fx.hbar.pre{opacity:1;transform:scaleX(0)}
+.fx.vbar.pre{opacity:1;transform:scaleY(0)}
+@media (prefers-reduced-motion: reduce){.fx,.scene,.sq{transition:none!important}}
+/* building blocks */
+.mod{position:absolute;box-sizing:border-box;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font:600 15px/1.2 var(--f-head);padding:8px}
+.mod small{display:block;margin-top:7px;font:500 10.5px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;opacity:.85}
+.frozen{background:var(--frozen-bg);border:1.5px solid var(--frozen);color:#1E3D8C}
+.trained{background:var(--trained-bg);border:1.5px solid var(--trained);color:#8B3F0F}
+.avgbox{border:1.5px dashed var(--avg);color:var(--ink2);background:transparent;font:500 12px/1.3 var(--f-mono)}
+.lane{position:absolute;font:600 11.5px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+.slab{position:absolute;font:500 12.5px var(--f-mono);color:var(--ink2)}
+.lab{position:absolute;font:500 12px var(--f-mono);color:var(--ink2);white-space:nowrap}
+.lab b{color:var(--ink);font-weight:600}
+.vec{position:absolute;display:flex;gap:1px;height:18px}
+.vec i{width:10px;height:100%;border-radius:2px}
+.xr{position:absolute;width:40px;height:48px}
+.rep{position:absolute;width:92px;height:46px;box-sizing:border-box;border:1px solid var(--line);border-radius:6px;background:#fff;padding:8px 9px}
+.rep span{display:block;height:3px;background:#C7D0DB;border-radius:2px;margin-bottom:6px}
+.rep span:nth-child(2){width:82%}.rep span:nth-child(3){width:58%}
+.legend{position:absolute;right:56px;top:36px;display:flex;gap:14px;align-items:center;font:500 11.5px var(--f-mono);color:var(--ink2)}
+.legend span{display:flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:4px;display:inline-block}
+.card{position:absolute;box-sizing:border-box;border:1px solid var(--line);border-radius:12px;background:#fff;padding:18px 20px}
+.card h3{margin:0 0 10px;font:600 17px/1.2 var(--f-head);color:var(--ink)}
+.card p,.card li{font:400 15px/1.45 var(--f-body);color:var(--ink2);margin:0}
+.card ul{margin:0;padding-left:18px;display:grid;gap:6px}
+.card b{color:var(--ink);font-weight:600}
+.mono{font-family:var(--f-mono)}
+.tag{display:inline-block;font:600 10.5px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:999px;padding:5px 11px;background:#fff;font:500 13px var(--f-body);color:var(--ink2);white-space:nowrap}
+.chip code{font:600 12.5px var(--f-mono);color:var(--ink)}
+.big{font:600 40px/1 var(--f-head);color:var(--ink);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.ax{font:500 12px var(--f-mono);fill:var(--muted)}
+.vl{font:600 13px var(--f-mono);fill:var(--ink)}
+.nm{font:500 15px var(--f-body);fill:var(--ink)}
+.nm2{font:400 12.5px var(--f-body);fill:var(--muted)}
+/* title */
+.kicker{font:500 13px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--trained)}
+h1{margin:18px 0 0;font:600 48px/1.08 var(--f-head);letter-spacing:-.02em;color:var(--ink);text-wrap:balance}
+.byline{margin-top:26px;font:500 16px var(--f-body);color:var(--ink2)}
+.facts{position:absolute;left:56px;top:470px;display:flex;gap:44px}
+.facts div{display:flex;flex-direction:column;gap:6px}
+.facts b{font:600 26px var(--f-head);color:var(--ink);font-variant-numeric:tabular-nums}
+.facts span{font:500 12px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+/* nodes */
+.node{position:absolute;box-sizing:border-box;border-radius:10px;border:1.5px solid var(--line);background:#fff;display:flex;flex-direction:column;justify-content:center;padding:0 14px;font:600 15px/1.2 var(--f-head);color:var(--ink)}
+.node small{font:400 12.5px var(--f-body);color:var(--muted);margin-top:3px}
+.node.study{background:var(--frozen-bg);border-color:#AFC3EE}
+/* tables */
+.tbl{position:absolute;border-collapse:collapse;font:400 14.5px var(--f-body);color:var(--ink2)}
+.tbl th{font:600 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);text-align:right;padding:0 12px 10px;border-bottom:1px solid var(--line)}
+.tbl th:first-child,.tbl td:first-child{text-align:left;padding-left:0}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--soft);text-align:right;font-variant-numeric:tabular-nums}
+.tbl td.n{font-family:var(--f-mono);font-size:13.5px}
+.tbl tr.hl td{color:var(--ink);font-weight:600}
+.pos{color:var(--good)!important}.neg{color:var(--bad)!important}
+/* ladder */
+.ladder{position:absolute;display:grid;grid-template-columns:110px 210px 210px 70px 70px;font:400 14px var(--f-body);color:var(--ink2)}
+.ladder > div{padding:11px 10px;border-bottom:1px solid var(--soft);display:flex;align-items:center}
+.ladder .h{font:600 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line)}
+.ladder code{font:600 13.5px var(--f-mono);color:var(--ink)}
+.ok{color:var(--good);font-weight:700}.no{color:var(--bad);font-weight:700}
+/* pcs chars */
+.pcs{position:absolute;display:flex;gap:8px}
+.pcs .c{width:68px;display:flex;flex-direction:column;align-items:center;gap:8px}
+.pcs .c b{width:58px;height:58px;border-radius:10px;border:1.5px solid var(--frozen);background:var(--frozen-bg);display:grid;place-items:center;font:600 28px var(--f-mono);color:#1E3D8C}
+.pcs .c span{font:500 10px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);text-align:center}
+.pcs .c em{font:400 12px/1.25 var(--f-body);font-style:normal;color:var(--ink2);text-align:center}
+/* waffle */
+.waffle{position:absolute;display:grid;grid-template-columns:repeat(10,32px);gap:6px}
+.sq{width:32px;height:32px;border-radius:6px;background:#DCE2EA;transition:background .5s ease;transition-delay:calc(var(--i) * 8ms)}
+.waffle.lit .sq.c1{background:var(--chest)}
+.waffle.lit .sq.c2{background:#B8C2D0}
+.waffle.lit .sq.c3{background:var(--frozen)}
+.stat{position:absolute;display:flex;gap:18px;align-items:baseline}
+.stat .big{min-width:110px}
+.stat p{margin:0;font:400 16px/1.4 var(--f-body);color:var(--ink2);max-width:300px}
+.qrow{display:flex;gap:16px;align-items:baseline;padding:14px 0;border-bottom:1px solid var(--soft)}
+.qrow span{font:600 13px var(--f-mono);color:var(--trained);min-width:28px}
+.qrow p{margin:0;font:500 19px/1.35 var(--f-body);color:var(--ink)}
+.prow{display:grid;grid-template-columns:150px 1fr;gap:16px;padding:16px 0;border-bottom:1px solid var(--soft)}
+.prow span{font:600 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding-top:3px}
+.prow p{margin:0;font:400 17px/1.45 var(--f-body);color:var(--ink2)}
+.prow b{color:var(--ink);font-weight:600}
+.note{position:absolute;font:400 12.5px/1.4 var(--f-body);color:var(--muted)}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="xr" viewBox="0 0 40 48">
+      <rect width="40" height="48" rx="5" fill="#1C2633"/>
+      <ellipse cx="13" cy="25" rx="8" ry="14" fill="#34465B"/>
+      <ellipse cx="27" cy="25" rx="8" ry="14" fill="#34465B"/>
+      <line x1="20" y1="6" x2="20" y2="44" stroke="#9FADBF" stroke-width="2"/>
+      <path d="M20 14Q11 12 6 17M20 20Q11 18 6 23M20 26Q11 24 6 29M20 32Q11 30 7 35M20 14Q29 12 34 17M20 20Q29 18 34 23M20 26Q29 24 34 29M20 32Q29 30 33 35" stroke="#CBD5E1" stroke-width="1.2" fill="none"/>
+    </symbol>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#9AA5B4"/>
+    </marker>
+  </defs>
+</svg>
+
+<div id="viewport">
+<div class="stage" id="stage">
+
+<!-- 1 TITLE -->
+<section class="scene" data-steps="1">
+  <div class="abs fx" style="left:56px;top:120px;width:820px">
+    <div class="kicker">Task 2 · multimodal multi-label classification</div>
+    <h1>Predicting the ICD codes of a hospital admission from its chest X-rays and radiology reports</h1>
+    <div class="byline">Saad Qasim Abbasi · November 2026</div>
+  </div>
+  <!-- thesis visual -->
+  <svg class="xr fx" style="left:950px;top:170px;width:84px;height:100px;--d:.2s"><use href="#xr"/></svg>
+  <div class="rep fx" style="left:946px;top:300px;width:92px;--d:.3s"><span></span><span></span><span></span></div>
+  <div class="vec fx" data-cells="10" data-kind="fus" style="left:1066px;top:252px;--d:.45s;--px:-30px;--py:0px"></div>
+  <div class="abs fx" style="left:1066px;top:290px;display:flex;flex-direction:column;gap:7px;--d:.6s">
+    <span class="chip"><code>428.0</code>heart failure</span>
+    <span class="chip"><code>486</code>pneumonia</span>
+    <span class="chip"><code>5A1955Z</code>ventilation</span>
+  </div>
+  <svg class="full"><path class="fx" style="--d:.4s" d="M1040 240 L1060 258 M1042 322 L1060 268" stroke="#9AA5B4" stroke-width="1.5" fill="none"/></svg>
+</section>
+
+<!-- 2 MOTIVATION -->
+<section class="scene" data-steps="2">
+  <div class="eyebrow">Motivation</div>
+  <h2>Can chest X-rays and their reports tell us how an admission will be coded?</h2>
+  <div class="abs fx" style="left:56px;top:150px;width:540px">
+    <div class="prow"><span>Why ICD codes</span><p>They summarise every hospital stay and drive <b>billing, statistics and research cohorts</b>.</p></div>
+    <div class="prow"><span>How they're made</span><p>Coders read the <b>whole record after discharge</b>: about <b>19 codes</b> per admission here.</p></div>
+    <div class="prow"><span>Why chest X-rays</span><p>Among the <b>most common data</b> in an admission: images show findings, reports describe them.</p></div>
+  </div>
+  <div class="abs" style="left:660px;top:150px;width:560px">
+    <div class="tag fx" data-in="1">Research questions</div>
+    <div class="qrow fx" data-in="1" style="--d:.05s"><span>Q1</span><p>How well can chest X-ray images and reports predict an admission's complete code set?</p></div>
+    <div class="qrow fx" data-in="1" style="--d:.15s"><span>Q2</span><p>Does combining image and text beat either one alone?</p></div>
+    <div class="qrow fx" data-in="1" style="--d:.25s"><span>Q3</span><p>Does a contrastive loss that knows which admissions have similar codes help?</p></div>
+    <div class="qrow fx" data-in="1" style="--d:.35s"><span>Q4</span><p>What limits performance: the model, or the information in the inputs?</p></div>
+  </div>
+</section>
+
+<!-- 3 DATA STRUCTURE -->
+<section class="scene" data-steps="3">
+  <div class="eyebrow">Data · MIMIC-IV admissions linked to MIMIC-CXR</div>
+  <h2>One admission, several studies, one set of codes</h2>
+  <div class="node fx" style="left:56px;top:290px;width:150px;height:72px">Admission<small>one hospital stay</small></div>
+  <div class="node study fx" style="left:280px;top:160px;width:150px;height:64px;--d:.1s">Study 1<small>one X-ray exam</small></div>
+  <div class="node study fx" style="left:280px;top:294px;width:150px;height:64px;--d:.18s">Study 2<small>one X-ray exam</small></div>
+  <div class="node study fx" style="left:280px;top:428px;width:150px;height:64px;--d:.26s">Study 3<small>one X-ray exam</small></div>
+  <svg class="xr fx" style="left:490px;top:168px;--d:.3s"><use href="#xr"/></svg>
+  <svg class="xr fx" style="left:536px;top:168px;--d:.34s"><use href="#xr"/></svg>
+  <div class="rep fx" style="left:590px;top:169px;--d:.38s"><span></span><span></span><span></span></div>
+  <svg class="xr fx" style="left:490px;top:302px;--d:.42s"><use href="#xr"/></svg>
+  <div class="rep fx" style="left:590px;top:303px;--d:.46s"><span></span><span></span><span></span></div>
+  <svg class="xr fx" style="left:490px;top:436px;--d:.5s"><use href="#xr"/></svg>
+  <svg class="xr fx" style="left:536px;top:436px;--d:.54s"><use href="#xr"/></svg>
+  <div class="rep fx" style="left:590px;top:437px;--d:.58s"><span></span><span></span><span></span></div>
+  <div class="lab fx" style="left:490px;top:140px;--d:.3s">1+ JPG images · 1 report</div>
+  <svg class="full">
+    <g class="fx" stroke="#B3BECC" stroke-width="1.5" fill="none">
+      <path d="M206 326 C245 326 240 192 280 192"/><path d="M206 326 L280 326"/><path d="M206 326 C245 326 240 460 280 460"/>
+      <path d="M430 192 L486 192"/><path d="M430 326 L486 326"/><path d="M430 460 L486 460"/>
+    </g>
+    <path class="fx" data-in="1" d="M700 326 L778 326" stroke="#9AA5B4" stroke-width="1.8" marker-end="url(#ah)"/>
+  </svg>
+  <div class="card fx" data-in="1" style="left:790px;top:150px;width:434px;height:330px;--px:30px;--py:0px">
+    <div class="tag">Target · one code set per admission</div>
+    <div style="font:600 12px var(--f-mono);color:var(--muted);margin:6px 0 8px">Diagnoses · ICD-9-CM</div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px">
+      <span class="chip"><code>428.0</code>congestive heart failure</span>
+      <span class="chip"><code>486</code>pneumonia</span>
+      <span class="chip"><code>584.9</code>acute kidney failure</span>
+      <span class="chip"><code>401.9</code>hypertension</span>
+    </div>
+    <div style="font:600 12px var(--f-mono);color:var(--muted);margin:16px 0 8px">Procedures · ICD-10-PCS</div>
+    <div style="display:flex;flex-wrap:wrap;gap:7px">
+      <span class="chip"><code>02HV33Z</code>central venous line</span>
+      <span class="chip"><code>5A1955Z</code>ventilation &gt; 96 h</span>
+    </div>
+    <p style="margin-top:18px;font:500 15px var(--f-body);color:var(--ink)">≈ 19 codes per admission, out of 6,085</p>
+  </div>
+  <div class="abs fx" data-in="2" style="left:56px;top:520px;width:1168px;display:flex;gap:40px;align-items:flex-end">
+    <div><div class="big">8,610</div><div class="lab" style="position:static;margin-top:6px">train admissions</div></div>
+    <div><div class="big">1,293</div><div class="lab" style="position:static;margin-top:6px">validation</div></div>
+    <div><div class="big">2,016</div><div class="lab" style="position:static;margin-top:6px">test (2,015 evaluated)</div></div>
+    <p style="margin:0 0 4px;font:400 14.5px/1.45 var(--f-body);color:var(--ink2);max-width:430px">Official patient-disjoint split. Kept: admissions with ≥ 1 locally available JPG, so <b style="color:var(--ink)">22% were dropped</b>. Reports of every referenced study are used.</p>
+  </div>
+</section>
+
+<!-- 4 LONG TAIL -->
+<section class="scene" data-steps="2">
+  <div class="eyebrow">Data · label space</div>
+  <h2>6,085 codes, and a very long tail</h2>
+  <svg class="full" id="tailSvg"></svg>
+</section>
+
+<!-- 5 TARGET CODES -->
+<section class="scene" data-steps="3">
+  <div class="eyebrow">Data · the target</div>
+  <h2>Two coding systems in one label set</h2>
+  <div class="card fx" style="left:56px;top:140px;width:540px;height:380px">
+    <div class="tag">Diagnoses · ICD-9-CM · what the patient had</div>
+    <div class="node" style="left:20px;top:56px;width:290px;height:46px;font-size:14px"><span><code class="mono" style="font-size:13px">390–459</code> circulatory system</span></div>
+    <div class="node" style="left:60px;top:130px;width:230px;height:46px;font-size:14px"><span><code class="mono" style="font-size:13px">428</code> heart failure</span></div>
+    <div class="node study" style="left:110px;top:206px;width:170px;height:46px;font-size:14px"><span><code class="mono" style="font-size:13px">428.0</code> unspecified</span></div>
+    <div class="node study" style="left:300px;top:206px;width:210px;height:46px;font-size:14px"><span><code class="mono" style="font-size:13px">428.21</code> acute systolic</span></div>
+    <svg style="position:absolute;left:0;top:0;width:540px;height:380px;overflow:visible" aria-hidden="true">
+      <g stroke="#B3BECC" stroke-width="1.5" fill="none"><path d="M40 102 V153 H60"/><path d="M90 176 V229 H110"/><path d="M90 176 V190 H405 V206"/></g>
+    </svg>
+    <div style="position:absolute;left:20px;bottom:20px;display:flex;gap:30px;align-items:baseline">
+      <div><div class="big" style="font-size:32px">3,280</div><div class="lab" style="position:static;margin-top:4px">codes · levels L1 → L5</div></div>
+      <div><div class="big" style="font-size:32px">89.8%</div><div class="lab" style="position:static;margin-top:4px">of test positives</div></div>
+    </div>
+  </div>
+  <div class="card fx" data-in="1" style="left:628px;top:140px;width:596px;height:380px">
+    <div class="tag">Procedures · ICD-10-PCS · what was done</div>
+    <div class="pcs" style="left:20px;top:58px">
+      <div class="c fx" data-in="1" style="--d:.05s"><b>0</b><span>section</span><em>medical &amp; surgical</em></div>
+      <div class="c fx" data-in="1" style="--d:.15s"><b>2</b><span>body system</span><em>heart &amp; great vessels</em></div>
+      <div class="c fx" data-in="1" style="--d:.25s"><b>H</b><span>operation</span><em>insertion</em></div>
+      <div class="c fx" data-in="1" style="--d:.35s"><b>V</b><span>body part</span><em>superior vena cava</em></div>
+      <div class="c fx" data-in="1" style="--d:.45s"><b>3</b><span>approach</span><em>percutaneous</em></div>
+      <div class="c fx" data-in="1" style="--d:.55s"><b>3</b><span>device</span><em>infusion device</em></div>
+      <div class="c fx" data-in="1" style="--d:.65s"><b>Z</b><span>qualifier</span><em>none</em></div>
+    </div>
+    <div style="position:absolute;left:20px;bottom:20px;display:flex;gap:30px;align-items:baseline">
+      <div><div class="big" style="font-size:32px">2,805</div><div class="lab" style="position:static;margin-top:4px">codes · 7 characters each</div></div>
+      <div><div class="big" style="font-size:32px">10.2%</div><div class="lab" style="position:static;margin-top:4px">of test positives</div></div>
+    </div>
+  </div>
+  <div class="abs fx" data-in="2" style="left:56px;top:548px;width:1168px;font:500 17px var(--f-body);color:var(--ink)">
+    <span class="tag" style="margin-right:12px">Term used throughout</span> A <b>positive</b> is an (admission, code) pair where the admission really has the code.
+  </div>
+</section>
+
+<!-- 6 PIPELINE A -->
+<section class="scene" data-steps="6">
+  <div class="eyebrow">Model · 1 of 2</div>
+  <h2>From studies to admission vectors</h2>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--frozen-bg);border:1.5px solid var(--frozen)"></i>frozen</span>
+    <span><i class="sw" style="background:var(--trained-bg);border:1.5px solid var(--trained)"></i>trained</span>
+    <span><i class="sw" style="border:1.5px dashed var(--avg)"></i>average</span>
+    <span><i class="sw" style="background:var(--img)"></i>image vector</span>
+    <span><i class="sw" style="background:var(--txt)"></i>text vector</span>
+  </div>
+  <div class="lane" style="left:56px;top:122px">Images</div>
+  <div class="lane" style="left:56px;top:372px">Reports</div>
+  <div class="slab" style="left:56px;top:160px">Study 1</div>
+  <div class="slab" style="left:56px;top:230px">Study 2</div>
+  <div class="slab" style="left:56px;top:300px">Study 3</div>
+  <div class="slab" style="left:56px;top:412px">Study 1</div>
+  <div class="slab" style="left:56px;top:482px">Study 2</div>
+  <div class="slab" style="left:56px;top:552px">Study 3</div>
+  <svg class="xr" style="left:130px;top:144px"><use href="#xr"/></svg>
+  <svg class="xr" style="left:176px;top:144px"><use href="#xr"/></svg>
+  <svg class="xr" style="left:130px;top:214px"><use href="#xr"/></svg>
+  <svg class="xr" style="left:130px;top:284px"><use href="#xr"/></svg>
+  <svg class="xr" style="left:176px;top:284px"><use href="#xr"/></svg>
+  <div class="rep" style="left:130px;top:397px"><span></span><span></span><span></span></div>
+  <div class="rep" style="left:130px;top:467px"><span></span><span></span><span></span></div>
+  <div class="rep" style="left:130px;top:537px"><span></span><span></span><span></span></div>
+
+  <div class="mod frozen fx" data-in="1" style="left:268px;top:140px;width:140px;height:196px">DINOv3<br>ViT-S/16<small>frozen</small></div>
+  <div class="mod frozen fx" data-in="3" style="left:268px;top:392px;width:140px;height:196px">MedCLIP<br>text encoder<small>frozen</small></div>
+
+  <!-- per-image vectors (step 1) -->
+  <div class="vec fx" data-kind="img" data-cells="12" data-in="1" data-out="2" style="left:448px;top:147px;--px:-40px;--py:0px;--my:12px"></div>
+  <div class="vec fx" data-kind="img" data-cells="12" data-in="1" data-out="2" style="left:448px;top:171px;--px:-40px;--py:0px;--my:-12px"></div>
+  <div class="vec fx" data-kind="img" data-cells="12" data-in="1" style="left:448px;top:229px;--px:-40px;--py:0px"></div>
+  <div class="vec fx" data-kind="img" data-cells="12" data-in="1" data-out="2" style="left:448px;top:287px;--px:-40px;--py:0px;--my:12px"></div>
+  <div class="vec fx" data-kind="img" data-cells="12" data-in="1" data-out="2" style="left:448px;top:311px;--px:-40px;--py:0px;--my:-12px"></div>
+  <!-- averaged study vectors (step 2) -->
+  <div class="vec fx" data-kind="img" data-cells="12" data-in="2" style="left:448px;top:159px;--py:0px"></div>
+  <div class="vec fx" data-kind="img" data-cells="12" data-in="2" style="left:448px;top:299px;--py:0px"></div>
+  <div class="lab fx" data-in="1" data-out="2" style="left:448px;top:124px;--po:0"><b>384-d</b> · one CLS vector per image</div>
+  <div class="lab fx" data-in="2" style="left:448px;top:124px"><b>384-d</b> · mean over the study's images</div>
+  <!-- text study vectors (step 3) -->
+  <div class="vec fx" data-kind="txt" data-cells="16" data-in="3" style="left:448px;top:411px;--px:-40px;--py:0px"></div>
+  <div class="vec fx" data-kind="txt" data-cells="16" data-in="3" style="left:448px;top:481px;--px:-40px;--py:0px;--d:.08s"></div>
+  <div class="vec fx" data-kind="txt" data-cells="16" data-in="3" style="left:448px;top:551px;--px:-40px;--py:0px;--d:.16s"></div>
+  <div class="lab fx" data-in="3" style="left:448px;top:376px"><b>512-d</b> · mean over tokens</div>
+
+  <!-- projections (step 4) -->
+  <div class="mod trained fx" data-in="4" style="left:648px;top:140px;width:104px;height:196px">Projection<br>MLP<small>trained</small></div>
+  <div class="mod trained fx" data-in="4" style="left:648px;top:392px;width:104px;height:196px">Projection<br>MLP<small>trained</small></div>
+  <div class="vec fx" data-kind="img" data-cells="16" data-in="4" data-out="5" style="left:784px;top:159px;--px:-336px;--py:0px;--mx:276px;--my:70px"></div>
+  <div class="vec fx" data-kind="img" data-cells="16" data-in="4" data-out="5" style="left:784px;top:229px;--px:-336px;--py:0px;--mx:276px;--my:0px;--d:.06s"></div>
+  <div class="vec fx" data-kind="img" data-cells="16" data-in="4" data-out="5" style="left:784px;top:299px;--px:-336px;--py:0px;--mx:276px;--my:-70px;--d:.12s"></div>
+  <div class="vec fx" data-kind="txt" data-cells="16" data-in="4" data-out="5" style="left:784px;top:411px;--px:-336px;--py:0px;--mx:276px;--my:70px"></div>
+  <div class="vec fx" data-kind="txt" data-cells="16" data-in="4" data-out="5" style="left:784px;top:481px;--px:-336px;--py:0px;--mx:276px;--my:0px;--d:.06s"></div>
+  <div class="vec fx" data-kind="txt" data-cells="16" data-in="4" data-out="5" style="left:784px;top:551px;--px:-336px;--py:0px;--mx:276px;--my:-70px;--d:.12s"></div>
+  <div class="lab fx" data-in="4" data-out="5" style="left:784px;top:124px"><b>512-d</b> per study</div>
+  <div class="lab fx" data-in="4" data-out="5" style="left:784px;top:376px"><b>512-d</b> per study</div>
+
+  <!-- mean over studies (step 5) -->
+  <div class="mod avgbox fx" data-in="5" style="left:975px;top:150px;width:66px;height:176px">mean<br>over<br>studies</div>
+  <div class="mod avgbox fx" data-in="5" style="left:975px;top:402px;width:66px;height:176px">mean<br>over<br>studies</div>
+  <div class="vec fx" data-kind="img" data-cells="16" data-in="5" style="left:1060px;top:229px;--px:-40px;--py:0px;--d:.35s"></div>
+  <div class="vec fx" data-kind="txt" data-cells="16" data-in="5" style="left:1060px;top:481px;--px:-40px;--py:0px;--d:.35s"></div>
+  <div class="lab fx" data-in="5" style="left:1060px;top:196px;--d:.4s"><b>Admission image vector</b><br>512-d</div>
+  <div class="lab fx" data-in="5" style="left:1060px;top:448px;--d:.4s"><b>Admission text vector</b><br>512-d</div>
+
+  <svg class="full">
+    <g stroke="#B3BECC" stroke-width="1.4" marker-end="url(#ah)">
+      <g class="fx" data-in="1"><line x1="224" y1="168" x2="264" y2="168"/><line x1="178" y1="238" x2="264" y2="238"/><line x1="224" y1="308" x2="264" y2="308"/>
+        <line x1="410" y1="168" x2="444" y2="168"/><line x1="410" y1="238" x2="444" y2="238"/><line x1="410" y1="308" x2="444" y2="308"/></g>
+      <g class="fx" data-in="3"><line x1="226" y1="420" x2="264" y2="420"/><line x1="226" y1="490" x2="264" y2="490"/><line x1="226" y1="560" x2="264" y2="560"/>
+        <line x1="410" y1="420" x2="444" y2="420"/><line x1="410" y1="490" x2="444" y2="490"/><line x1="410" y1="560" x2="444" y2="560"/></g>
+      <g class="fx" data-in="4"><line x1="584" y1="238" x2="644" y2="238"/><line x1="628" y1="490" x2="644" y2="490"/>
+        <line x1="754" y1="238" x2="780" y2="238"/><line x1="754" y1="490" x2="780" y2="490"/></g>
+      <g class="fx" data-in="5"><line x1="1043" y1="238" x2="1056" y2="238"/><line x1="1043" y1="490" x2="1056" y2="490"/></g>
+    </g>
+  </svg>
+</section>
+
+<!-- 7 PIPELINE B -->
+<section class="scene" data-steps="6">
+  <div class="eyebrow">Model · 2 of 2</div>
+  <h2>Fusion and one shared classifier</h2>
+  <div class="legend">
+    <span><i class="sw" style="background:var(--trained-bg);border:1.5px solid var(--trained)"></i>trained</span>
+    <span><i class="sw" style="background:var(--img)"></i>image</span>
+    <span><i class="sw" style="background:var(--txt)"></i>text</span>
+    <span><i class="sw" style="background:linear-gradient(90deg,var(--img) 50%,var(--txt) 50%)"></i>fused</span>
+  </div>
+  <div class="lab" style="left:80px;top:136px"><b>Admission image vector</b> · 512</div>
+  <div class="vec" data-kind="img" data-cells="16" style="left:80px;top:161px"></div>
+  <div class="lab" style="left:80px;top:256px"><b>Admission text vector</b> · 512</div>
+  <div class="vec" data-kind="txt" data-cells="16" style="left:80px;top:281px"></div>
+  <!-- concat (step 1) -->
+  <div class="vec fx" data-kind="img" data-cells="16" data-in="1" data-out="3" style="left:340px;top:201px;--px:-260px;--py:-40px"></div>
+  <div class="vec fx" data-kind="txt" data-cells="16" data-in="1" data-out="3" style="left:516px;top:201px;--px:-436px;--py:80px"></div>
+  <div class="lab fx" data-in="1" data-out="3" style="left:340px;top:172px;--d:.4s"><b>concat</b> · 512 + 512 = 1,024</div>
+  <!-- fusion (step 2) -->
+  <div class="mod trained fx" data-in="2" data-out="3" style="left:730px;top:166px;width:120px;height:88px">Fusion<br>MLP<small>trained</small></div>
+  <div class="vec fx" data-kind="fus" data-cells="16" data-in="2" data-out="3" style="left:880px;top:201px;--px:-60px;--py:0px;--d:.25s;--mx:-800px;--my:200px;--po:1"></div>
+  <div class="lab fx" data-in="2" data-out="3" style="left:880px;top:172px;--d:.3s"><b>fused</b> · 512</div>
+  <div class="lab fx" data-in="3" style="left:80px;top:376px;--d:.5s"><b>Admission fused vector</b> · 512</div>
+  <!-- classifier (step 3) -->
+  <div class="mod trained fx" data-in="3" style="left:400px;top:250px;width:190px;height:190px;--d:.3s;font-size:16px">Shared<br>classifier<small style="text-transform:none;letter-spacing:0;font-size:12px">one linear layer<br>W: 6,085 × 512</small></div>
+  <div class="lab fx" data-in="3" style="left:400px;top:226px;--d:.45s">same weights for all three</div>
+  <div id="scores" class="abs" style="left:650px;top:0;width:520px;height:600px"></div>
+  <!-- top 5 (step 4) -->
+  <div class="abs fx" data-in="4" style="left:650px;top:440px;width:580px">
+    <div class="tag">Top-5 codes · illustrative</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px">
+      <span class="chip"><code>428.0</code>heart failure <b class="ok">✓</b></span>
+      <span class="chip"><code>401.9</code>hypertension <b class="ok">✓</b></span>
+      <span class="chip"><code>584.9</code>kidney failure <b class="ok">✓</b></span>
+      <span class="chip"><code>486</code>pneumonia <b class="no">✗</b></span>
+      <span class="chip"><code>5A1955Z</code>ventilation <b class="ok">✓</b></span>
+    </div>
+  </div>
+  <!-- loss (step 5) -->
+  <div class="card fx" data-in="5" style="left:56px;top:470px;width:560px;height:118px;padding:14px 18px">
+    <div class="tag">Loss</div>
+    <div style="font:500 16px var(--f-mono);color:var(--ink)">L = 0.25·BCE<sub>img</sub> + 0.25·BCE<sub>txt</sub> + 0.5·BCE<sub>fused</sub> + λ·SupCon</div>
+    <p style="margin-top:8px;font-size:13.5px">Target y: the same multi-hot vector in all three terms (≈ 19 ones out of 6,085). BCE = one independent yes/no per code.</p>
+  </div>
+  <div class="lab fx" data-in="5" style="left:1180px;top:142px;color:var(--trained)"><b style="color:var(--trained)">× 0.25</b></div>
+  <div class="lab fx" data-in="5" style="left:1180px;top:262px;color:var(--trained)"><b style="color:var(--trained)">× 0.25</b></div>
+  <div class="lab fx" data-in="5" style="left:1180px;top:382px;color:var(--trained)"><b style="color:var(--trained)">× 0.50</b></div>
+  <svg class="full">
+    <g stroke="#B3BECC" stroke-width="1.4" fill="none" marker-end="url(#ah)">
+      <g class="fx" data-in="1" data-out="3"><path d="M260 170 C300 170 300 205 336 208"/><path d="M260 290 C320 290 460 260 520 222"/></g>
+      <g class="fx" data-in="2" data-out="3"><line x1="694" y1="210" x2="726" y2="210"/><line x1="852" y1="210" x2="876" y2="210"/></g>
+      <g class="fx" data-in="3" style="--d:.3s"><path d="M262 170 C330 170 340 330 396 338"/><path d="M262 290 C330 290 340 340 396 345"/><path d="M262 410 C330 410 340 360 396 352"/>
+        <path d="M594 338 C620 330 620 172 646 170"/><path d="M594 345 C620 345 620 290 646 290"/><path d="M594 352 C620 360 620 408 646 410"/></g>
+    </g>
+  </svg>
+</section>
+
+<!-- 8 JACCARD SUPCON -->
+<section class="scene" data-steps="2">
+  <div class="eyebrow">Learning · supervised contrastive loss</div>
+  <h2>Jaccard SupCon: similar code sets, similar embeddings</h2>
+  <div class="card fx" style="left:56px;top:140px;width:700px;height:244px;padding:24px 28px">
+    <div class="tag">Similarity of two admissions</div>
+    <div style="font:500 28px var(--f-mono);color:var(--ink);margin:6px 0 24px">J(A, B) = |A ∩ B| / |A ∪ B|</div>
+    <div style="display:grid;grid-template-columns:40px 1fr;gap:10px 12px;align-items:center">
+      <span class="mono" style="font-weight:600;color:var(--muted)">A</span>
+      <div style="display:flex;gap:7px"><span class="chip" style="border-color:var(--trained);background:var(--trained-bg)"><code>428.0</code>heart failure</span><span class="chip" style="border-color:var(--trained);background:var(--trained-bg)"><code>401.9</code>hypertension</span><span class="chip"><code>584.9</code>kidney failure</span></div>
+      <span class="mono" style="font-weight:600;color:var(--muted)">B</span>
+      <div style="display:flex;gap:7px"><span class="chip" style="border-color:var(--trained);background:var(--trained-bg)"><code>428.0</code>heart failure</span><span class="chip" style="border-color:var(--trained);background:var(--trained-bg)"><code>401.9</code>hypertension</span></div>
+    </div>
+    <p style="margin-top:22px;font:500 18px var(--f-body);color:var(--ink)">2 shared / 3 in total = <b style="color:var(--trained);font-size:22px">0.67</b></p>
+  </div>
+  <div class="card fx" style="left:784px;top:140px;width:440px;height:244px;padding:24px 26px;--d:.15s">
+    <div class="tag">The loss</div>
+    <p style="font-size:17px;line-height:1.5">Every pair in a batch is pulled together with strength <b>J</b>; pairs with J = 0 are pushed apart.</p>
+    <div style="font:500 17px var(--f-mono);color:var(--ink);margin-top:22px">L = L<sub>BCE</sub> + 0.001 · L<sub>SupCon</sub></div>
+    <p style="margin-top:12px;font-size:14px">On the image, text and fused vectors</p>
+  </div>
+  <div class="abs fx" data-in="1" style="left:56px;top:420px;width:1168px;display:flex;gap:60px">
+    <div class="stat" style="position:static"><div class="big">70%</div><p>of random pairs share at least one code, so a yes/no rule would call almost every pair similar</p></div>
+    <div class="stat" style="position:static"><div class="big">500×</div><p>SupCon gradient vs BCE at the start, hence λ = 0.001</p></div>
+  </div>
+</section>
+
+<!-- 9 HIERARCHY SUPCON -->
+<section class="scene" data-steps="4">
+  <div class="eyebrow">Learning · follow-up variant</div>
+  <h2>Hierarchy SupCon: partial credit for related codes</h2>
+  <div class="abs" style="left:56px;top:132px;display:flex;gap:14px;align-items:center">
+    <span class="chip" style="font-size:15px;padding:8px 14px"><code style="font-size:15px">428.0</code>heart failure, unspecified</span>
+    <span style="font:500 14px var(--f-mono);color:var(--muted)">vs</span>
+    <span class="chip" style="font-size:15px;padding:8px 14px"><code style="font-size:15px">428.21</code>acute systolic heart failure</span>
+    <span class="fx" style="margin-left:14px;font:500 15px var(--f-body);color:var(--bad);--d:.3s">exact-code Jaccard = 0 → "unrelated"</span>
+  </div>
+  <div class="ladder" style="left:56px;top:196px">
+    <div class="h">Level</div><div class="h">Admission A</div><div class="h">Admission B</div><div class="h">Match</div><div class="h">Weight</div>
+  </div>
+  <div id="ladderRows"></div>
+  <div class="card fx" data-in="2" style="left:800px;top:196px;width:424px;height:150px">
+    <div class="tag">Similarity = depth-weighted mean</div>
+    <div style="font:500 15px/1.6 var(--f-mono);color:var(--ink)">(1·1 + 2·1 + 3·1 + 4·0 + 5·0 + 6·0)<br>/ (1+2+3+4+5+6) = 6/21 = <b style="color:var(--trained);font-size:20px">0.29</b></div>
+  </div>
+  <div class="card fx" data-in="3" style="left:800px;top:364px;width:424px;height:224px">
+    <ul>
+      <li>Deeper levels weigh more: <b>98%</b> of random pairs share an L1 chapter.</li>
+      <li>Procedures: level ℓ = first ℓ characters of the code.</li>
+      <li>Result (seed 42): <b>0.2200</b> vs <b>0.2203</b> with Jaccard → no extra gain.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 11 JOURNEY -->
+<section class="scene" data-steps="8">
+  <div class="eyebrow">Results · test micro AP, fused scores</div>
+  <h2>From baseline to final model</h2>
+  <svg class="full" id="journeySvg"></svg>
+  <div id="journeyNotes"></div>
+</section>
+
+<!-- 12 MAIN RESULT -->
+<section class="scene" data-steps="2">
+  <div class="eyebrow">Results · main experiment, 3 seeds per model</div>
+  <h2>SupCon adds a small gain, on every seed</h2>
+  <svg class="full" id="slopeSvg"></svg>
+  <table class="tbl fx" data-in="1" style="left:620px;top:140px;width:604px">
+    <thead><tr><th>Test metric</th><th>BCE</th><th>+ SupCon</th><th>Δ</th><th>Better</th></tr></thead>
+    <tbody>
+      <tr class="hl"><td>Micro AP · fused</td><td class="n">0.2180</td><td class="n">0.2205</td><td class="n pos">+0.0025</td><td class="n">3 of 3</td></tr>
+      <tr><td>Micro AP · image</td><td class="n">0.1894</td><td class="n">0.1906</td><td class="n pos">+0.0011</td><td class="n">3 of 3</td></tr>
+      <tr><td>Micro AP · text</td><td class="n">0.1835</td><td class="n">0.1830</td><td class="n neg">−0.0005</td><td class="n">0 of 3</td></tr>
+      <tr><td>Precision@5</td><td class="n">0.430</td><td class="n">0.437</td><td class="n pos">+0.006</td><td class="n">3 of 3</td></tr>
+      <tr><td>Macro AP</td><td class="n">0.0400</td><td class="n">0.0410</td><td class="n pos">+0.0010</td><td class="n">2 of 3</td></tr>
+      <tr><td>AP at L1 (chapter)</td><td class="n">0.667</td><td class="n">0.670</td><td class="n pos">+0.003</td><td class="n">3 of 3</td></tr>
+      <tr><td>AP at L3 (category)</td><td class="n">0.299</td><td class="n">0.301</td><td class="n pos">+0.003</td><td class="n">3 of 3</td></tr>
+    </tbody>
+  </table>
+  <div class="note fx" data-in="1" style="left:620px;top:520px;width:604px">Mean of 3 seeds; Δ computed per seed, then averaged. Seed-to-seed std of fused micro AP ≈ 0.0004.</div>
+</section>
+
+<!-- 13 FUSION -->
+<section class="scene" data-steps="2">
+  <div class="eyebrow">Results · Q2</div>
+  <h2>Fusion beats each modality alone</h2>
+  <svg class="full" id="fusionSvg"></svg>
+</section>
+
+<!-- 14 PER LEVEL -->
+<section class="scene" data-steps="3">
+  <div class="eyebrow">Results · AP at each ICD level</div>
+  <h2>The model beats the baseline at every level, most at the fine ones</h2>
+  <svg class="full" id="levelSvg"></svg>
+</section>
+
+<!-- 15 FOLLOW-UPS -->
+<section class="scene" data-steps="2">
+  <div class="eyebrow">Results · follow-ups, seed 42</div>
+  <h2>Hierarchy weights add nothing; fine-tuning adds a little</h2>
+  <svg class="full" id="followSvg"></svg>
+</section>
+
+<!-- 16 LIMITS 1 -->
+<section class="scene" data-steps="3">
+  <div class="eyebrow">What limits performance · Q4</div>
+  <h2>Diagnoses a chest X-ray can show are a small share of the labels</h2>
+  <div class="lab" style="left:80px;top:128px">100 squares = all positive labels in the test set</div>
+  <div class="waffle" id="waffle" data-on="1" style="left:80px;top:152px"></div>
+  <div class="abs fx" data-in="1" style="left:80px;top:540px;display:flex;gap:22px;font:500 13px var(--f-body);color:var(--ink2)">
+    <span><i class="sw" style="background:var(--chest);vertical-align:-2px"></i> hand-picked chest-visible diagnoses ≈ 7%</span>
+    <span><i class="sw" style="background:#B8C2D0;vertical-align:-2px"></i> other diagnoses 83.0%</span>
+    <span><i class="sw" style="background:var(--frozen);vertical-align:-2px"></i> procedures 10.2%</span>
+  </div>
+  <div class="abs fx" data-in="2" style="left:80px;top:574px;width:500px;font:400 14px/1.4 var(--f-body);color:var(--ink2)"><b style="color:var(--ink)">Not visible on a chest X-ray</b>, e.g. diabetes, depression, alcohol use, anaemia, kidney disease</div>
+  <svg class="full" id="groupSvg"></svg>
+</section>
+
+<!-- 18 CONCLUSIONS -->
+<section class="scene" data-steps="2">
+  <div class="eyebrow">Conclusions</div>
+  <h2>Four questions, four answers</h2>
+  <div class="card fx" style="left:56px;top:140px;width:380px;height:200px">
+    <div class="tag">Q1 · how well?</div>
+    <div class="big" style="font-size:34px">+57%</div>
+    <p style="margin-top:8px">micro AP over the baseline: <b>0.2205</b> vs 0.1408; P@5 <b>0.44</b> vs 0.36. Best: <b>0.2227</b> with fine-tuning.</p>
+  </div>
+  <div class="card fx" style="left:452px;top:140px;width:380px;height:200px;--d:.1s">
+    <div class="tag">Q2 · fusion?</div>
+    <div class="big" style="font-size:34px">+0.03 AP</div>
+    <p style="margin-top:8px">over the best single modality. Image and text alone are about equal (0.19, 0.18).</p>
+  </div>
+  <div class="card fx" style="left:56px;top:356px;width:380px;height:200px;--d:.2s">
+    <div class="tag">Q3 · contrastive loss?</div>
+    <div class="big" style="font-size:34px">+0.0025</div>
+    <p style="margin-top:8px">with Jaccard SupCon, on 3 of 3 seeds. Hierarchy-aware weights add nothing.</p>
+  </div>
+  <div class="card fx" style="left:452px;top:356px;width:380px;height:200px;--d:.3s">
+    <div class="tag">Q4 · what limits it?</div>
+    <div class="big" style="font-size:34px">≈ 7%</div>
+    <p style="margin-top:8px">of positive labels fall in a hand-picked set of chest-visible diagnoses. The inputs, not the model, set the ceiling.</p>
+  </div>
+  <div class="card fx" data-in="1" style="left:860px;top:140px;width:364px;height:416px;--px:30px;--py:0px">
+    <div class="tag">Limitations</div>
+    <ul>
+      <li>22% of admissions dropped (no local image)</li>
+      <li>Only chest X-rays and reports, not notes, labs or vitals</li>
+    </ul>
+    <div class="tag" style="margin-top:22px">Next steps</div>
+    <ul>
+      <li>Predict at the ICD category level (e.g. 428 heart failure), where the X-ray carries the signal</li>
+      <li>Add notes, labs and vitals</li>
+    </ul>
+    <p style="margin-top:26px;font:600 22px var(--f-head);color:var(--ink)">Thank you</p>
+  </div>
+</section>
+
+<div class="caption" id="cap"><span id="capText"></span></div>
+<div class="nav">
+  <div class="dots" id="dots"></div>
+  <span id="counter">1 / 18</span>
+  <button id="prev" aria-label="Previous">‹</button>
+  <button id="next" aria-label="Next">›</button>
+</div>
+<div class="progress" id="progress"></div>
+</div>
+</div>
+
+<script>
+(function(){
+const CAPS = [
+  ["Press → or Space to step through · ← goes back · F for full screen"],
+  ["ICD codes are assigned by hand after discharge", "Four questions guide the project"],
+  ["An admission is one hospital stay with about 3 X-ray studies; each study has 1+ images and exactly one report",
+   "The target is the admission's whole code set; no code is tied to a specific study",
+   "Official patient-disjoint split; admissions with no local image are dropped"],
+  ["Most codes are rare: 77% have fewer than 10 training admissions",
+   "But the 21 most frequent codes carry a quarter of all positive labels; the rare 77% carry only 6.6%"],
+  ["Diagnoses form a tree: 428.0 and 428.21 are two kinds of heart failure under category 428",
+   "Procedure codes: seven characters, each with a fixed meaning",
+   "This definition is used for every metric that follows"],
+  ["One admission: three studies, each with its images and one report",
+   "Each image goes through frozen DINOv3 and gives a 384-d CLS vector",
+   "Images of the same study are averaged into one study image vector",
+   "Each report goes through frozen MedCLIP: token vectors of BERT layers 1, 2 and 12, averaged into one 512-d vector",
+   "Trained projection MLPs map every study vector to 512-d",
+   "Average over the studies after projection, so the MLP sees each study on its own"],
+  ["Two admission vectors, 512-d each",
+   "Concatenate them: 1,024-d",
+   "A trained fusion MLP maps it back to 512-d",
+   "One shared linear classifier scores all 6,085 codes from each of the three vectors",
+   "The fused scores are the prediction: rank the codes, read the top 5",
+   "Same target for all three; the fused term gets half the weight"],
+  ["Admissions with overlapping code sets should sit close in the embedding space",
+   "Why graded, and why such a small weight"],
+  ["Exact-code Jaccard misses clinically close pairs",
+   "Compare the codes at every level of the ICD tree",
+   "Weighted average, deeper levels count more",
+   "A good idea on paper, but no measurable gain"],
+  ["The bar to beat: the frequency baseline, 0.141",
+   "Weighted BCE falls below the baseline",
+   "Plain BCE beats it",
+   "Training longer helps, but the best epoch is still the last",
+   "Training to convergence: the largest single gain",
+   "Jaccard SupCon adds a small, reliable gain",
+   "Hierarchy-aware weights add nothing more",
+   "Fine-tuning the encoders gives the best result, 0.2227"],
+  ["+0.0025 on every seed, about 6× the seed-to-seed spread",
+   "Image scores, P@5 and every ICD level improve too; text alone does not"],
+  ["Image and text are about equally informative on their own",
+   "Fused scores add about 0.03 AP over the better one"],
+  ["Coarse levels are easy, even for the baseline",
+   "The model lifts every level",
+   "Its margin grows from L1 to the exact codes"],
+  ["Hierarchy vs Jaccard differs by less than the seed-to-seed spread",
+   "Unfreezing both encoders adds +0.0025 over a frozen control (one seed: an indication)"],
+  ["Each square is 1% of the positive labels",
+   "About 7% of positive labels fall in a hand-picked set of 107 chest-visible diagnoses",
+   "On those the model reaches 2.7× the baseline; on the other 83%, only 1.4×"],
+  ["Lesson: plain BCE and training to convergence gave far more than any model change", "Limitations and next steps"]
+];
+
+const stage=document.getElementById('stage');
+const scenes=[...stage.querySelectorAll('.scene')];
+const capEl=document.getElementById('cap'), capText=document.getElementById('capText');
+const dotsEl=document.getElementById('dots'), counter=document.getElementById('counter'), prog=document.getElementById('progress');
+
+/* ---------- vector strips ---------- */
+const PAL={img:['#4B37B8','#6A52D6','#8B76E3','#B2A4EE','#D6CEF7'],txt:['#0B6E60','#14937F','#3FB29E','#86D0C2','#C3E8E0']};
+function rng(seed){let s=seed%233280;return()=>{s=(s*9301+49297)%233280;return s/233280;};}
+let vi=0;
+function fillVecs(root){
+  root.querySelectorAll('.vec').forEach(v=>{
+    const n=+v.dataset.cells,k=v.dataset.kind,r=rng(97+(vi++)*131);let h='';
+    for(let c=0;c<n;c++){const p=k==='fus'?(r()<.5?PAL.img:PAL.txt):PAL[k];h+='<i style="background:'+p[Math.floor(r()*5)]+'"></i>';}
+    v.innerHTML=h;
+  });
+}
+
+/* ---------- helpers ---------- */
+const f4=v=>v.toFixed(4), f3=v=>v.toFixed(3);
+function txt(x,y,s,cls,extra){return '<text x="'+x+'" y="'+y+'" class="'+cls+'" '+(extra||'')+'>'+s+'</text>';}
+
+/* ---------- scene 4: long tail ---------- */
+(function(){
+  const G=[{n:21,p:25.0,c:'#1E3D8C',lab:'≥ 1,000 training admissions'},{n:285,p:47.5,c:'#3B6FD8',lab:'100–999'},{n:1123,p:20.9,c:'#8DAAE8',lab:'10–99'},{n:4656,p:6.6,c:'#D3DDF4',lab:'< 10'}];
+  const X0=120,W=1040,y1=196,y2=420,h=46;let s='';
+  let xa=X0,xb=X0;const segA=[],segB=[];
+  G.forEach(g=>{const wa=Math.max(4,g.n/6085*W),wb=g.p/100*W;segA.push([xa,wa]);segB.push([xb,wb]);xa+=wa;xb+=wb;});
+  s+=txt(X0,y1-36,'Codes in the label space · 6,085','nm2','font-weight="600"');
+  G.forEach((g,i)=>{s+='<rect class="fx hbar" style="--d:'+(i*.12)+'s" x="'+segA[i][0]+'" y="'+y1+'" width="'+segA[i][1]+'" height="'+h+'" fill="'+g.c+'"/>';});
+  s+=txt(segA[3][0]+16,y1+29,'4,656 codes · 77% · fewer than 10 training admissions','vl','style="fill:#1E3D8C"');
+  s+=txt(segA[2][0]+10,y1+29,'1,123','vl','style="fill:#132033"');
+  s+='<g class="fx" style="--d:.4s"><line x1="'+(segA[0][0]+2)+'" y1="'+(y1+h)+'" x2="'+(segA[0][0]+2)+'" y2="'+(y1+h+22)+'" stroke="#1E3D8C"/>'+txt(segA[0][0],y1+h+38,'21 codes','vl','style="fill:#1E3D8C"')+'</g>';
+  s+=txt(segA[1][0]+4,y1-10,'285','vl','style="fill:#3B6FD8"');
+  G.forEach((g,i)=>{const a=segA[i],b=segB[i];
+    s+='<path class="fx" data-in="1" style="--d:'+(i*.1)+'s" d="M'+a[0]+' '+(y1+h)+' L'+(a[0]+a[1])+' '+(y1+h)+' L'+(b[0]+b[1])+' '+y2+' L'+b[0]+' '+y2+'Z" fill="'+g.c+'" opacity=".28"/>';
+    s+='<rect class="fx hbar" data-in="1" style="--d:'+(.3+i*.1)+'s" x="'+b[0]+'" y="'+y2+'" width="'+b[1]+'" height="'+h+'" fill="'+g.c+'"/>';
+    const lc=i<2?'#fff':'#132033';
+    s+='<text class="fx vl" data-in="1" style="--d:'+(.6+i*.1)+'s;fill:'+lc+'" x="'+(b[0]+10)+'" y="'+(y2+29)+'">'+(g.p.toFixed(g.p%1?1:0))+'%</text>';
+  });
+  s+=txt(X0,y2+h+28,'Share of positive labels in the test set','nm2 fx','font-weight="600" data-in="1"');
+  s+='<g class="fx" data-in="1" style="--d:.8s">';
+  let lx=X0;G.forEach(g=>{s+='<rect x="'+lx+'" y="560" width="14" height="14" rx="3" fill="'+g.c+'"/>'+txt(lx+22,572,g.lab,'nm2');lx+=g.lab.length*7.2+64;});
+  s+=txt(lx,572,'(training admissions per code)','nm2')+'</g>';
+})();
+(function(){
+  const G=[['≥ 1,000',21,'0.3%',.345,25.0],['100–999',285,'4.7%',4.68,47.5],['10–99','1,123','18.5%',18.46,20.9],['< 10','4,656','76.5%',76.52,6.6]];
+  const XA=380,XB=820,K=3.6;let s='';
+  s+=txt(56,170,'Training admissions per code','nm2','font-weight="600"');
+  s+=txt(XA,170,'Share of codes','nm2','font-weight="600" style="fill:#3B6FD8"');
+  s+='<g class="fx" data-in="1">'+txt(XB,170,'Share of positive labels (test)','nm2','font-weight="600" style="fill:#B4551C"')+'</g>';
+  s+='<line x1="56" y1="184" x2="1224" y2="184" stroke="#D7DEE7"/>';
+  G.forEach((g,i)=>{const y=222+i*86;
+    s+=txt(56,y+12,g[0],'vl','style="font-size:22px"')+txt(56,y+34,(typeof g[1]==='number'?g[1]:g[1])+' codes','nm2');
+    const wa=Math.max(3,g[3]*K),wb=g[4]*K;
+    s+='<rect class="fx hbar" style="--d:'+(i*.1)+'s" x="'+XA+'" y="'+(y-8)+'" width="'+wa+'" height="34" rx="4" fill="#3B6FD8"/>';
+    s+='<text class="fx vl" style="--d:'+(.3+i*.1)+'s;--py:0px;font-size:16px" x="'+(XA+wa+10)+'" y="'+(y+15)+'">'+g[2]+'</text>';
+    s+='<rect class="fx hbar" data-in="1" style="--d:'+(i*.1)+'s" x="'+XB+'" y="'+(y-8)+'" width="'+wb+'" height="34" rx="4" fill="#E07B39"/>';
+    s+='<text class="fx vl" data-in="1" style="--d:'+(.3+i*.1)+'s;--py:0px;font-size:16px" x="'+(XB+wb+10)+'" y="'+(y+15)+'">'+g[4].toFixed(1)+'%</text>';
+    s+='<line x1="56" y1="'+(y+48)+'" x2="1224" y2="'+(y+48)+'" stroke="#EEF2F6"/>';});
+  document.getElementById('tailSvg').innerHTML=s;
+})();
+
+/* ---------- scene 7: score barcodes ---------- */
+(function(){
+  const rows=[['Image scores',170],['Text scores',290],['Fused scores = prediction',410]];
+  const N=130,top5=[9,37,58,91,112];let h='';
+  rows.forEach((r,ri)=>{
+    const rr=rng(500+ri*77);
+    h+='<div class="lab fx" data-in="3" style="left:0;top:'+(r[1]-56)+'px;--d:'+(.5+ri*.1)+'s"><b>'+r[0]+'</b> · 6,085 codes</div>';
+    let svg='<svg class="fx" data-in="3" style="position:absolute;left:0;top:'+(r[1]-34)+'px;width:520px;height:44px;--d:'+(.55+ri*.12)+'s;--px:-20px;--py:0px" viewBox="0 0 520 44">';
+    for(let i=0;i<N;i++){let v=Math.pow(rr(),5)*0.75+0.04;if(top5.indexOf(i)>=0)v=0.75+rr()*0.25;const hh=Math.max(2,v*42);
+      svg+='<rect x="'+(i*4)+'" y="'+(44-hh)+'" width="3" height="'+hh+'" fill="'+(ri===0?'#8B76E3':ri===1?'#3FB29E':'#7D8796')+'" rx="1"/>';}
+    svg+='</svg>';h+=svg;
+    if(ri===2){let ov='<svg class="fx" data-in="4" style="position:absolute;left:0;top:'+(r[1]-34)+'px;width:520px;height:44px;--py:0px" viewBox="0 0 520 44">';
+      const rr2=rng(500+2*77);for(let i=0;i<N;i++){let v=Math.pow(rr2(),5)*0.75+0.04;if(top5.indexOf(i)>=0){v=0.75+rr2()*0.25;const hh=v*42;ov+='<rect x="'+(i*4-1)+'" y="'+(44-hh-1)+'" width="5" height="'+(hh+1)+'" fill="#E07B39" rx="1"/>';}}
+      ov+='</svg>';h+=ov;}
+  });
+  document.getElementById('scores').innerHTML=h;
+})();
+
+/* ---------- scene 8: supcon (removed animation) ---------- */
+false && (function(){
+  const A=[
+    {id:'A',c:'#6A52D6',codes:[['428.0','heart failure'],['401.9','hypertension'],['584.9','kidney failure']],p:[[700,180],[1120,520],[900,262]],q:[[785,232],[815,232],[800,258]]},
+    {id:'B',c:'#3B6FD8',codes:[['428.0','heart failure'],['401.9','hypertension']],p:[[1150,205],[760,480],[985,560]],q:[[850,280],[880,280],[865,306]]},
+    {id:'C',c:'#14937F',codes:[['512.8','pneumothorax']],p:[[820,330],[1180,360],[700,560]],q:[[1090,492],[1120,492],[1105,518]]},
+    {id:'D',c:'#E07B39',codes:[['401.9','hypertension'],['512.8','pneumothorax']],p:[[1050,150],[880,420],[1100,440]],q:[[990,432],[1020,432],[1005,458]]}];
+  let list='';
+  A.forEach((a,i)=>{list+='<div class="fx" style="display:flex;gap:8px;align-items:center;--d:'+(i*.08)+'s"><span style="width:26px;height:26px;border-radius:7px;background:'+a.c+';color:#fff;display:grid;place-items:center;font:600 13px var(--f-mono)">'+a.id+'</span>'+a.codes.map(c=>'<span class="chip"><code>'+c[0]+'</code>'+c[1]+'</span>').join('')+'</div>';});
+  document.getElementById('admList').innerHTML=list;
+  const shape=k=>k===0?'<circle r="9"/>':k===1?'<path d="M0 -11 L10 7 L-10 7Z"/>':'<path d="M0 -11 L11 0 L0 11 L-11 0Z"/>';
+  let s='<rect x="650" y="140" width="574" height="452" rx="14" fill="#F4F6F9"/>';
+  const pairs=[[0,1,.67],[2,3,.5],[1,3,.33],[0,3,.25]];
+  pairs.forEach(([i,j,w],k)=>{const a=A[i].p[2],b=A[j].p[2];
+    s+='<g class="fx" data-in="1" data-out="2" style="--d:'+(k*.1)+'s"><line x1="'+a[0]+'" y1="'+a[1]+'" x2="'+b[0]+'" y2="'+b[1]+'" stroke="#132033" stroke-opacity=".55" stroke-width="'+(1+w*9)+'" stroke-linecap="round"/>'+
+      '<text x="'+((a[0]+b[0])/2)+'" y="'+((a[1]+b[1])/2-8)+'" class="vl" text-anchor="middle" stroke="#F4F6F9" stroke-width="5" paint-order="stroke">'+(A[i].id+'–'+A[j].id+' '+w.toFixed(2))+'</text></g>';});
+  A.forEach(a=>{for(let k=0;k<3;k++){const p=a.p[k],q=a.q[k];
+    s+='<g transform="translate('+p[0]+' '+p[1]+')"><g class="fx" data-out="2" style="--mx:'+(q[0]-p[0])+'px;--my:'+(q[1]-p[1])+'px;--po:1;--d:'+(k*.05)+'s" fill="'+a.c+'" stroke="#FBFCFD" stroke-width="2">'+shape(k)+(k===2?'<text x="13" y="-9" class="vl" stroke="none" style="fill:'+a.c+'">'+a.id+'</text>':'')+'</g></g>';}});
+  document.getElementById('supSvg').innerHTML=s;
+})();
+
+/* ---------- scene 9: ladder ---------- */
+(function(){
+  const R=[['L1 · chapter','390–459 circulatory','390–459 circulatory',1,1],['L2 · block','420–429 other heart disease','420–429 other heart disease',1,2],['L3 · category','428','428',1,3],['L4','428.0','428.2',0,4],['L5','428.0','428.21',0,5],['Exact','428.0','428.21',0,6]];
+  let h='<div class="ladder" style="left:56px;top:237px">';
+  R.forEach((r,i)=>{const d='--d:'+(i*.12)+'s';
+    const c=v=>/^[0-9.]+$/.test(v)?'<code>'+v+'</code>':'<span><code>'+v.split(' ')[0]+'</code> '+v.split(' ').slice(1).join(' ')+'</span>';
+    h+='<div class="fx" data-in="1" style="'+d+'">'+r[0]+'</div><div class="fx" data-in="1" style="'+d+'">'+c(r[1])+'</div><div class="fx" data-in="1" style="'+d+'">'+c(r[2])+'</div><div class="fx" data-in="1" style="'+d+'">'+(r[3]?'<span class="ok">✓ 1</span>':'<span class="no">✗ 0</span>')+'</div><div class="fx mono" data-in="1" style="'+d+';font-weight:600;color:#132033">'+r[4]+'</div>';});
+  h+='</div>';document.getElementById('ladderRows').innerHTML=h;
+})();
+
+/* ---------- scene 11: journey ---------- */
+(function(){
+  const J=[["Frequency baseline (no input)",.1408,'#A6AEBB'],["Weighted BCE · 20 epochs",.0854,'#CDD2D9'],["Plain BCE · 20 epochs",.1782,'#3B6FD8'],["Plain BCE · 60 epochs · 3 seeds",.2100,'#3B6FD8'],["Plain BCE · 120 ep, cosine · 3 seeds",.2180,'#3B6FD8'],["+ Jaccard SupCon · 3 seeds",.2205,'#E07B39'],["Hierarchy SupCon instead · 1 seed",.2200,'#14937F'],["Jaccard SupCon + fine-tuning · 1 seed",.2227,'#B4551C']];
+  const N=[["Baseline","Ignores the inputs; every admission gets each code's training frequency. P@5 0.361."],
+    ["Weighted BCE","Positives of rare codes weighted up to 50× (97% of codes hit the cap). Inflated rare-code scores push false pairs above true common ones."],
+    ["Plain BCE","Every code weighted equally: 0.178, P@5 0.396. Used from here on."],
+    ["60 epochs","In every 20-epoch run the best epoch was the last. 60 epochs: 0.210 ± 0.001, still best at the end."],
+    ["Converged","120 epochs, cosine 1e-3 → 1e-5, early stopping. Best epochs 109–119, curve flat. About +0.04 over 20 epochs."],
+    ["Jaccard SupCon","+0.0025 over BCE, positive on all 3 seeds."],
+    ["Hierarchy SupCon","0.2200 vs 0.2203: no gain over Jaccard."],
+    ["Fine-tuning","Last two blocks of both encoders: +0.0025 over a frozen control."]];
+  const X0=380,S=2400,Y0=138,DY=50;let s='';
+  for(let t=0;t<=0.25001;t+=0.05){const x=X0+t*S;s+='<line x1="'+x+'" y1="128" x2="'+x+'" y2="'+(Y0+8*DY-8)+'" stroke="#E6EBF1"/>'+txt(x,Y0+8*DY+12,t.toFixed(2),'ax','text-anchor="middle"');}
+  J.forEach((j,i)=>{const y=Y0+i*DY,w=j[1]*S;
+    s+='<g class="fx" data-in="'+i+'" style="--py:6px">'+txt(X0-14,y+20,j[0],'nm','text-anchor="end"')+'</g>';
+    s+='<rect class="fx hbar" data-in="'+i+'" x="'+X0+'" y="'+y+'" width="'+w+'" height="30" rx="4" fill="'+j[2]+'"/>';
+    s+='<text class="fx vl" data-in="'+i+'" style="--d:.35s;--py:0px" x="'+(X0+w+8)+'" y="'+(y+20)+'">'+f4(j[1])+'</text>';});
+  const bx=X0+.1408*S;
+  s+='<line x1="'+bx+'" y1="128" x2="'+bx+'" y2="'+(Y0+8*DY-8)+'" stroke="#7A8596" stroke-dasharray="5 5" stroke-width="1.5"/>';
+  document.getElementById('journeySvg').innerHTML=s;
+  let h='';N.forEach((n,i)=>{h+='<div class="card fx" data-in="'+i+'"'+(i<N.length-1?' data-out="'+(i+1)+'"':'')+' style="left:1000px;top:138px;width:224px;--px:20px;--py:0px;--mx:-10px;--my:0px"><div class="tag">'+(i+1)+' / 8</div><h3>'+n[0]+'</h3><p style="font-size:14.5px">'+n[1]+'</p></div>';});
+  document.getElementById('journeyNotes').innerHTML=h;
+})();
+
+/* ---------- scene 12: slope ---------- */
+(function(){
+  const D=[[42,.2177,.2203,'+0.0025'],[43,.2179,.2209,'+0.0030'],[44,.2184,.2202,'+0.0018']];
+  const y=v=>520-(v-.2170)/.0045*360, xa=170, xb=430;let s='';
+  for(let t=.2170;t<=.22151;t+=.001){s+='<line x1="'+(xa-20)+'" y1="'+y(t)+'" x2="'+(xb+20)+'" y2="'+y(t)+'" stroke="#E6EBF1"/>'+txt(xa-30,y(t)+4,t.toFixed(3),'ax','text-anchor="end"');}
+  s+=txt(xa,550,'BCE','nm','text-anchor="middle" font-weight="600"')+txt(xb,550,'+ Jaccard SupCon','nm','text-anchor="middle" font-weight="600"');
+  s+=txt(56,140,'Test micro AP per seed (zoomed axis)','nm2','font-weight="600"');
+  const DYL=[-5,0,10];
+  D.forEach((d,i)=>{const c=['#3B6FD8','#6A52D6','#14937F'][i];
+    s+='<g class="fx" style="--d:'+(i*.2)+'s;--py:0px"><line x1="'+xa+'" y1="'+y(d[1])+'" x2="'+xb+'" y2="'+y(d[2])+'" stroke="'+c+'" stroke-width="2.5"/>'+
+    '<circle cx="'+xa+'" cy="'+y(d[1])+'" r="6" fill="'+c+'"/><circle cx="'+xb+'" cy="'+y(d[2])+'" r="6" fill="'+c+'"/>'+
+    txt(xb+14,y(d[2])+4+DYL[i],'seed '+d[0]+' · '+d[3],'vl','style="fill:'+c+'"')+'</g>';});
+  document.getElementById('slopeSvg').innerHTML=s;
+})();
+
+/* ---------- scene 13: fusion ---------- */
+(function(){
+  const B=[['Image only',.1906,'#6A52D6'],['Text only',.1830,'#14937F'],['Fused',.2205,'#E07B39']];
+  const X0=250,S=3200,Y0=200,DY=90;let s='';
+  for(let t=0;t<=0.25001;t+=0.05){const x=X0+t*S;s+='<line x1="'+x+'" y1="180" x2="'+x+'" y2="470" stroke="#E6EBF1"/>'+txt(x,490,t.toFixed(2),'ax','text-anchor="middle"');}
+  B.forEach((b,i)=>{const y=Y0+i*DY;s+=txt(X0-16,y+28,b[0],'nm','text-anchor="end" font-weight="600"')+'<rect class="fx hbar" style="--d:'+(i*.15)+'s" x="'+X0+'" y="'+y+'" width="'+(b[1]*S)+'" height="44" rx="5" fill="'+b[2]+'"/>'+'<text class="fx vl" style="--d:'+(.4+i*.15)+'s;--py:0px;font-size:15px" x="'+(X0+b[1]*S+10)+'" y="'+(y+28)+'">'+f4(b[1])+'</text>';});
+  const bx=X0+.1408*S;s+='<line x1="'+bx+'" y1="180" x2="'+bx+'" y2="470" stroke="#7A8596" stroke-dasharray="5 5" stroke-width="1.5"/>'+txt(bx,172,'baseline 0.141','ax','text-anchor="middle"');
+  const xi=X0+.1906*S,xf=X0+.2205*S;
+  s+='<g class="fx" data-in="1"><path d="M'+xi+' 196 V160 H'+xf+' V376" fill="none" stroke="#132033" stroke-width="1.5" stroke-dasharray="3 3"/>'+txt((xi+xf)/2,150,'+0.030','vl','text-anchor="middle" style="font-size:18px;fill:#E07B39"')+'</g>';
+  s+=txt(X0,540,'Test micro AP, BCE + Jaccard SupCon, mean of 3 seeds','nm2','');
+  document.getElementById('fusionSvg').innerHTML=s;
+})();
+
+/* ---------- scene 14: per level ---------- */
+(function(){
+  const L=['L1','L2','L3','L4','L5','Exact'],C=['51 chapters','279','1,088','2,710','3,280','6,085 codes'];
+  const base=[.649,.406,.227,.159,.151,.141],mod=[.670,.441,.301,.233,.221,.220];
+  const yb=510,S=440,bw=58;let s='';
+  for(let t=0;t<=0.75001;t+=0.25){const y=yb-t*S;s+='<line x1="100" y1="'+y+'" x2="1210" y2="'+y+'" stroke="#E6EBF1"/>'+txt(90,y+4,t.toFixed(2),'ax','text-anchor="end"');}
+  L.forEach((l,i)=>{const cx=180+i*190;
+    const hb=base[i]*S,hm=mod[i]*S;
+    s+='<rect class="fx vbar" style="--d:'+(i*.07)+'s" x="'+(cx-bw-3)+'" y="'+(yb-hb)+'" width="'+bw+'" height="'+hb+'" rx="3" fill="#A6AEBB"/>';
+    s+='<text class="fx vl" style="--d:'+(.3+i*.07)+'s;--py:0px" x="'+(cx-bw/2-3)+'" y="'+(yb-hb-8)+'" text-anchor="middle">'+f3(base[i])+'</text>';
+    s+='<rect class="fx vbar" data-in="1" style="--d:'+(i*.07)+'s" x="'+(cx+3)+'" y="'+(yb-hm)+'" width="'+bw+'" height="'+hm+'" rx="3" fill="#E07B39"/>';
+    s+='<text class="fx vl" data-in="1" style="--d:'+(.3+i*.07)+'s;--py:0px" x="'+(cx+bw/2+3)+'" y="'+(yb-hm-8)+'" text-anchor="middle">'+f3(mod[i])+'</text>';
+    s+='<text class="fx vl" data-in="2" style="--d:'+(i*.08)+'s;font-size:15px;fill:#2E9E6B" x="'+cx+'" y="'+(yb-hm-34)+'" text-anchor="middle">+'+(mod[i]-base[i]).toFixed(3)+'</text>';
+    s+=txt(cx,yb+24,l,'nm','text-anchor="middle" font-weight="600"')+txt(cx,yb+42,C[i],'nm2','text-anchor="middle"');});
+  s+='<g transform="translate(860 140)"><rect width="14" height="14" rx="3" fill="#A6AEBB"/>'+txt(22,12,'Frequency baseline','nm2')+'<g class="fx" data-in="1"><rect x="170" width="14" height="14" rx="3" fill="#E07B39"/>'+txt(192,12,'BCE + Jaccard SupCon','nm2')+'</g></g>';
+  s+=txt(100,140,'Test micro AP · L1–L5 diagnoses only · exact = all codes','nm2');
+  document.getElementById('levelSvg').innerHTML=s;
+})();
+
+/* ---------- scene 15: follow-ups (dot plots, zoomed axes) ---------- */
+(function(){
+  let s='';
+  function panel(x0,x1,lo,hi,ticks,title,rows,stepIn,band){
+    const X=v=>x0+(v-lo)/(hi-lo)*(x1-x0);let g='<g class="fx" data-in="'+stepIn+'">';
+    g+=txt(x0,150,title,'nm2','font-weight="600"');
+    ticks.forEach(t=>{g+='<line x1="'+X(t)+'" y1="170" x2="'+X(t)+'" y2="'+(190+rows.length*70)+'" stroke="#E6EBF1"/>'+txt(X(t),210+rows.length*70,t.toFixed(4),'ax','text-anchor="middle"');});
+    if(band){g+='<rect x="'+X(band[0])+'" y="170" width="'+(X(band[1])-X(band[0]))+'" height="'+(rows.length*70+20)+'" fill="#E07B39" opacity=".12"/>'+txt(X(band[1])+6,184,'± seed std','ax');}
+    rows.forEach((r,i)=>{const y=210+i*70;
+      g+=txt(x0,y-16,r[0],'nm','font-weight="600"')+'<line x1="'+x0+'" y1="'+y+'" x2="'+X(r[1])+'" y2="'+y+'" stroke="#D7DEE7" stroke-width="2"/>'+
+        '<circle cx="'+X(r[1])+'" cy="'+y+'" r="8" fill="'+r[2]+'"/>'+txt(X(r[1])+14,y+5,f4(r[1])+(r[3]?'  '+r[3]:''),'vl');});
+    return g+'</g>';
+  }
+  s+=panel(70,560,.2170,.2210,[.2170,.2180,.2190,.2200,.2210],'Hierarchy vs Jaccard SupCon · test micro AP (zoomed)',
+    [['BCE only',.2177,'#3B6FD8',''],['+ Jaccard SupCon',.2203,'#E07B39',''],['+ Hierarchy SupCon',.2200,'#14937F','−0.0003']],0,[.2199,.2207]);
+  s+=panel(700,1150,.2195,.2235,[.2195,.2205,.2215,.2225,.2235],'Fine-tuning the last two blocks · test micro AP (zoomed)',
+    [['Frozen control',.2202,'#A6AEBB',''],['Image encoder',.2215,'#6A52D6','+0.0013'],['Text encoder',.2216,'#14937F','+0.0014'],['Both encoders',.2227,'#E07B39','+0.0025']],1);
+  document.getElementById('followSvg').innerHTML=s;
+})();
+
+/* ---------- scene 16: waffle + groups ---------- */
+(function(){
+  let h='';for(let i=0;i<100;i++){const c=i<7?'c1':i<90?'c2':'c3';h+='<div class="sq '+c+'" style="--i:'+i+'"></div>';}
+  document.getElementById('waffle').innerHTML=h;
+  const R=[['Chest-visible diagnoses','107 hand-picked codes · 6.8%',.120,.320,'2.7×','#E05A3A'],['Other diagnoses','3,173 codes · 83.0%',.152,.215,'1.4×','#8D9AAD'],['Procedures','2,805 codes · 10.2%',.040,.209,'5.2×','#3B6FD8'],['All codes','6,085 codes',.141,.223,'1.6×','#132033']];
+  const X0=850,S=900;let s='<g>';
+  s+='<g class="fx" data-in="2">'+txt(600,140,'Micro AP per group · baseline vs model','nm2','font-weight="600"')+'</g>';
+  R.forEach((r,i)=>{const y=182+i*92;
+    s+='<g class="fx" data-in="2" style="--d:'+(i*.1)+'s">'+txt(600,y+6,r[0],'nm','font-weight="600"')+txt(600,y+26,r[1],'nm2')+
+      txt(600,y+50,r[4]+' baseline','vl','style="fill:'+r[5]+'"')+'</g>';
+    s+='<rect class="fx hbar" data-in="2" style="--d:'+(.1+i*.1)+'s" x="'+X0+'" y="'+(y-10)+'" width="'+(r[2]*S)+'" height="14" rx="3" fill="#A6AEBB"/>';
+    s+='<text class="fx vl" data-in="2" style="--d:'+(.4+i*.1)+'s;--py:0px;font-size:12px;fill:#7A8596" x="'+(X0+r[2]*S+8)+'" y="'+(y+1)+'">'+f3(r[2])+'</text>';
+    s+='<rect class="fx hbar" data-in="2" style="--d:'+(.2+i*.1)+'s" x="'+X0+'" y="'+(y+8)+'" width="'+(r[3]*S)+'" height="22" rx="3" fill="'+r[5]+'"/>';
+    s+='<text class="fx vl" data-in="2" style="--d:'+(.5+i*.1)+'s;--py:0px" x="'+(X0+r[3]*S+8)+'" y="'+(y+24)+'">'+f3(r[3])+'</text>';});
+  s+='<g class="fx" data-in="2"><rect x="'+X0+'" y="548" width="14" height="10" rx="2" fill="#A6AEBB"/>'+txt(X0+20,557,'baseline','nm2')+'<rect x="'+(X0+100)+'" y="546" width="14" height="14" rx="2" fill="#132033"/>'+txt(X0+120,557,'model (fine-tuned, seed 42)','nm2')+'</g>';
+  document.getElementById('groupSvg').innerHTML=s+'</g>';
+})();
+
+/* ---------- scene 17: dumbbell ---------- */
+(function(){
+  const R=[['Heart failure (428)',.21,.74],['Pleural effusion',.42,.67],['Pneumothorax',.28,.56],['Pneumonia',.26,.51]];
+  const X0=290,S=560;let s='';
+  for(let t=0;t<=0.8001;t+=0.2){const x=X0+t*S;s+='<line x1="'+x+'" y1="160" x2="'+x+'" y2="500" stroke="#E6EBF1"/>'+txt(x,520,t.toFixed(1),'ax','text-anchor="middle"');}
+  s+=txt(56,140,'Model AP per finding (fine-tuned, seed 42)','nm2','font-weight="600"');
+  R.forEach((r,i)=>{const y=200+i*80,xa=X0+r[1]*S,xb=X0+r[2]*S;
+    s+=txt(56,y+5,r[0],'nm','font-weight="600"');
+    s+='<rect class="fx hbar" data-in="1" style="--d:'+(i*.1)+'s" x="'+xa+'" y="'+(y-2)+'" width="'+(xb-xa)+'" height="4" fill="#E07B39" opacity=".5"/>';
+    s+='<g class="fx" style="--d:'+(i*.08)+'s;--py:0px"><circle cx="'+xa+'" cy="'+y+'" r="9" fill="#3B6FD8"/>'+txt(xa,y-16,r[1].toFixed(2),'vl','text-anchor="middle"')+'</g>';
+    s+='<g class="fx" data-in="1" style="--d:'+(.3+i*.1)+'s;--px:-20px;--py:0px"><circle cx="'+xb+'" cy="'+y+'" r="10" fill="#E07B39"/>'+txt(xb,y-17,r[2].toFixed(2),'vl','text-anchor="middle" style="fill:#B4551C"')+'</g>';});
+  s+='<g transform="translate(290 556)"><circle cx="7" cy="-4" r="7" fill="#3B6FD8"/>'+txt(20,1,'exact codes','nm2')+'<g class="fx" data-in="1"><circle cx="137" cy="-4" r="7" fill="#E07B39"/>'+txt(150,1,'any code in the category counts','nm2')+'</g></g>';
+  const de=document.getElementById('dumbSvg');if(de)de.innerHTML=s;
+})();
+
+fillVecs(stage);
+
+/* ---------- navigation ---------- */
+let cur=0, step=0;
+const steps=scenes.map(s=>+s.dataset.steps||1);
+const total=steps.reduce((a,b)=>a+b,0);
+function applyStep(){
+  const s=scenes[cur];
+  s.querySelectorAll('.fx').forEach(e=>{const a=+(e.dataset.in||0), b=e.dataset.out!==undefined?+e.dataset.out:1e9;e.classList.toggle('pre',step<a);e.classList.toggle('post',step>=b);});
+  s.querySelectorAll('[data-on]').forEach(e=>e.classList.toggle('lit',step>=+e.dataset.on));
+  const c=(CAPS[cur]||[])[step]||'';
+  capEl.classList.add('fade');setTimeout(()=>{capText.textContent=c;capEl.classList.remove('fade');},180);
+  let d='';for(let i=0;i<steps[cur];i++)d+='<i class="'+(i<=step?'on':'')+'"></i>';dotsEl.innerHTML=steps[cur]>1?d:'';
+  counter.textContent=(cur+1)+' / '+scenes.length;
+  let g=0;for(let i=0;i<cur;i++)g+=steps[i];g+=step;prog.style.width=(total>1?g/(total-1)*100:100)+'%';
+}
+function enter(i,st){
+  scenes.forEach((s,k)=>s.classList.toggle('active',k===i));
+  const s=scenes[i];
+  s.querySelectorAll('.fx').forEach(e=>{e.classList.add('pre');e.classList.remove('post');});
+  s.querySelectorAll('[data-on]').forEach(e=>e.classList.remove('lit'));
+  cur=i;step=st;void s.offsetWidth;
+  requestAnimationFrame(()=>requestAnimationFrame(applyStep));
+  try{history.replaceState(null,'','#slide-'+(i+1));}catch(e){}
+}
+function next(){if(step<steps[cur]-1){step++;applyStep();}else if(cur<scenes.length-1){enter(cur+1,0);}}
+function prev(){if(step>0){step--;applyStep();}else if(cur>0){enter(cur-1,steps[cur-1]-1);}}
+document.getElementById('next').addEventListener('click',next);
+document.getElementById('prev').addEventListener('click',prev);
+window.addEventListener('keydown',e=>{
+  if(['ArrowRight','PageDown',' ','Enter'].includes(e.key)){e.preventDefault();next();}
+  else if(['ArrowLeft','PageUp','Backspace'].includes(e.key)){e.preventDefault();prev();}
+  else if(e.key==='Home'){enter(0,0);}
+  else if(e.key==='End'){enter(scenes.length-1,0);}
+  else if(e.key==='f'||e.key==='F'){try{if(!document.fullscreenElement){const p=document.documentElement.requestFullscreen&&document.documentElement.requestFullscreen();if(p&&p.catch)p.catch(()=>{});}else{document.exitFullscreen();}}catch(err){}}
+});
+function fit(){const sc=Math.min(window.innerWidth/1300,window.innerHeight/740);stage.style.transform='translate(-50%,-50%) scale('+sc+')';}
+window.addEventListener('resize',fit);fit();
+let start=0;try{const m=(location.hash||'').match(/slide-(\d+)/);if(m)start=Math.min(scenes.length-1,Math.max(0,+m[1]-1));}catch(e){}
+enter(start,0);
+})();
+</script>
