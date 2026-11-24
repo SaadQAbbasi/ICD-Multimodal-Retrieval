@@ -1,5 +1,0 @@
-- `train_custom_mlm.py`: script that implements and train an MLM from scratch
-- `train_mlm_icd.py`: script that finetunes a pretrained MLM
-- `train_text_retriever_w_negatives.py`: finetune an encoder for a text-only retrieval task
-- `train_clip.ipynb`: notebook containing the training script for CLiP in a retrieval setting
-- `run_generative_mlm_baseline.py`: script for performing baseline generative evaluations of pretrained model

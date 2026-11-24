@@ -1,7 +1,7 @@
 # Task 2 — reproduction guide
 
 Detailed companion to the [README](../README.md): every file's role, setup, and the exact commands behind each
-reported result. All commands run from `src/task2/` (the "repository root" below).
+reported result. All commands run from the repository root.
 
 ## 2. Repository structure
 
@@ -85,7 +85,7 @@ so there nothing needs editing.
 
 ### 3.0 Quick start on the project machine (`faretra`)
 ```bash
-git clone <this repository> && cd <repository>/src/task2
+git clone https://github.com/SaadQAbbasi/ICD-Multimodal-Retrieval.git && cd ICD-Multimodal-Retrieval
 source configs/paths.env                     # faretra defaults: project venv, /datasets/..., downloaded models
 
 # 1. end-to-end check of the pipeline, ~2 min on one GPU (400/100/100 admissions, 2 epochs, scores not meaningful)
