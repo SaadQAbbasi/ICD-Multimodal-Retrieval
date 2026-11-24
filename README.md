@@ -3,7 +3,7 @@
 Predict the full set of **ICD codes** of a hospital admission (multi-label, **6,085 codes**) from the admission's
 **chest X-rays** and **radiology reports** (MIMIC-IV linked to MIMIC-CXR).
 
-📄 [Final report (PDF)](docs/task2_final_report.pdf) · 🖥️ [Slides](docs/task2_presentation.pptx) ·
+📄 [Final report (PDF)](docs/task2_final_report_v4.pdf) · 🖥️ [Slides](docs/task2-presentation.html) ·
 📓 [Results notebook](notebooks/results_overview.ipynb) · 🔁 [Full reproduction guide](docs/REPRODUCE.md)
 
 ## Method
